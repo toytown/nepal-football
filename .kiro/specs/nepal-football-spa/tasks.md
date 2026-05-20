@@ -208,6 +208,111 @@ This implementation plan delivers the Nepali Europapokal 2026 Manager — a Type
   - _Requirements: 7.3, 7.4_
   - _Design: Testing Strategy (Integration), Build & Deployment_
 
+- [ ] 25. Extend shared types with Volunteer, VolunteerDay, LoginRequest, and AuthResponse
+  - Open `shared/types.ts` and add:
+    - `export type VolunteerDay = 'Friday' | 'Saturday' | 'Sunday';`
+    - `export interface Volunteer { id: string; name: string; days: VolunteerDay[]; taskIds: string[]; }`
+    - `export interface LoginRequest { username: string; password: string; }`
+    - `export interface AuthResponse { token: string; }`
+  - Rebuild the shared package and verify `dist/types.d.ts` exports the new types
+  - _Requirements: 14.1_
+  - _Design: TypeScript Types Shared Between Frontend and Backend_
+
+- [ ] 26. Implement auth route handler (login endpoint)
+  - Install `jsonwebtoken` and `bcryptjs` (and their `@types`) in the backend package
+  - Create `backend/src/routes/auth.ts` exporting `login(event)`:
+    - Parse and validate request body as `LoginRequest` (both fields required strings) → 400 on failure
+    - Compare `username` against `process.env.ADMIN_USERNAME` and `password` against `process.env.ADMIN_PASSWORD_HASH` using `bcrypt.compare` → 401 on mismatch
+    - On success sign a JWT with `process.env.JWT_SECRET`, algorithm HS256, expiry 8 hours, payload `{ sub: username, role: 'admin' }`
+    - Return `{ token }` as `AuthResponse`
+  - Create `backend/src/lib/auth.ts` exporting `verifyAdminToken(event)` that reads the `Authorization: Bearer <token>` header, verifies the JWT signature and expiry, and throws a tagged 401 error if invalid or missing
+  - _Requirements: 11.6, 11.7_
+  - _Design: Auth State, API Endpoints, Security Considerations_
+
+- [ ] 27. Implement volunteer route handlers (CRUD)
+  - Create `backend/src/routes/volunteers.ts` exporting:
+    - `listVolunteers()` — `Query` PK=`VOLUNTEER`, sort by `sortKey`, return `Volunteer[]`
+    - `createVolunteer(event)` — call `verifyAdminToken`, parse body `{ name, days, taskIds }`, validate (name required max 100, days non-empty array of valid VolunteerDay values, taskIds array 0–20), generate UUID for SK, `PutItem` with `ConditionExpression: attribute_not_exists(SK)`, return created `Volunteer` with 201
+    - `updateVolunteer(event)` — call `verifyAdminToken`, parse `{id}` from path, parse and validate body same as create, `UpdateItem` with `ConditionExpression: attribute_exists(PK)` → 404 on `ConditionalCheckFailedException`, return updated `Volunteer`
+    - `deleteVolunteer(event)` — call `verifyAdminToken`, parse `{id}`, `DeleteItem` with `ConditionExpression: attribute_exists(PK)` → 404 on fail, return empty 204
+  - Add `VOLUNTEER` PK support to `backend/src/db/ddb.ts` (add `putItem`, `deleteItem` helpers alongside existing `updateDone`)
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
+  - _Design: API Endpoints, Lambda Organization, DynamoDB Single-Table Design_
+
+- [ ] 28. Wire new routes into Lambda handler
+  - Open `backend/src/handler.ts` and add cases to the route switch:
+    ```ts
+    case 'POST /auth/login':          return jsonResponse(200, await login(event));
+    case 'GET /volunteers':           return jsonResponse(200, await listVolunteers());
+    case 'POST /volunteers':          return jsonResponse(201, await createVolunteer(event));
+    case 'PUT /volunteers/{id}':      return jsonResponse(200, await updateVolunteer(event));
+    case 'DELETE /volunteers/{id}':   return jsonResponse(204, await deleteVolunteer(event));
+    ```
+  - Import `login` from `./routes/auth` and all volunteer handlers from `./routes/volunteers`
+  - Ensure `errorResponse.fromException` already handles 401 (add mapping: tagged auth error → 401 UNAUTHORIZED if not present)
+  - _Requirements: 11.6, 14.4_
+  - _Design: Lambda Organization_
+
+- [ ] 29. Update CDK stack with new Lambda env vars and API routes
+  - Open `infra/lib/nepal-football-stack.ts`
+  - Add env vars to `apiLambda`: `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET` — read from CDK context (`this.node.tryGetContext`) with a fallback that throws a descriptive error if not provided
+  - Add the 5 new routes to the `HttpApi`: `POST /auth/login`, `GET /volunteers`, `POST /volunteers`, `PUT /volunteers/{id}`, `DELETE /volunteers/{id}` — all using the same `HttpLambdaIntegration(apiLambda)`
+  - Document in a comment that `ADMIN_PASSWORD_HASH` must be a bcrypt hash (cost 12) generated offline and passed as CDK context, e.g. `cdk deploy --context adminUsername=admin --context adminPasswordHash='$2b$12$...' --context jwtSecret=<random-32-char-string>`
+  - _Requirements: 11.6_
+  - _Design: Infrastructure (AWS CDK), Security Considerations_
+
+- [ ] 30. Implement useAdminAuth hook and LoginModal component
+  - Create `frontend/src/api/hooks.ts` addition (or a new `frontend/src/hooks/useAdminAuth.ts`): export `useAdminAuth()` returning `{ isAdmin: boolean, login(token: string): void, logout(): void }` backed by `useState` initialized from `sessionStorage.getItem('admin_token')` (non-null = admin); `login` stores the token and sets state; `logout` removes it and clears state
+  - Create `frontend/src/components/LoginModal.tsx`:
+    - Props: `{ isOpen: boolean, onClose: () => void, onSuccess: () => void }`
+    - Controlled form with username and password inputs, submit button, and an error message area
+    - On submit: `POST /auth/login` via `apiFetch`; on 200 call `login(token)` from `useAdminAuth` then `onSuccess` then `onClose`; on 401 show "Invalid username or password"; on other error show generic message
+    - Accessible: `<label>` for each input, focus trap inside modal, Escape key closes, `role="dialog"` with `aria-modal="true"`
+  - Update `frontend/src/components/Header.tsx` to use `useAdminAuth()`: render "Login" button when not admin (opens modal), "Logout" button when admin (calls `logout()`)
+  - Update `frontend/src/App.tsx` to manage `loginModalOpen` state and pass it to `Header` and `LoginModal`
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.8_
+  - _Design: Auth State, Component Specifications (LoginModal)_
+
+- [ ] 31. Implement VolunteerForm component
+  - Create `frontend/src/components/VolunteerForm.tsx`:
+    - Props: `{ volunteer?: Volunteer, onSave: (v: Volunteer) => void, onCancel: () => void }`
+    - Fields: name text input (required, maxLength 100), three checkboxes (Friday, Saturday, Sunday), multi-select task list from `useTasks()` cache (display task names, value = task id)
+    - Client-side validation on submit: name empty → inline "Name is required"; no day checked → inline "Select at least one day"
+    - Edit mode: pre-populate name, days, and taskIds; filter out task IDs not present in current tasks list (stale refs)
+    - On valid submit: call `useCreateVolunteer` (create) or `useUpdateVolunteer` (edit) mutation; on success call `onSave(result)`; on API error display error message and keep form open
+    - Cancel button calls `onCancel`
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8_
+  - _Design: Component Specifications (VolunteerForm)_
+
+- [ ] 32. Implement Volunteers view and wire into navigation
+  - Create `frontend/src/views/Volunteers.tsx`:
+    - Data: `useVolunteers()` query hook (`GET /volunteers`); add this hook to `frontend/src/api/hooks.ts`
+    - Mutation hooks: `useCreateVolunteer` (`POST /volunteers`), `useUpdateVolunteer` (`PUT /volunteers/{id}`), `useDeleteVolunteer` (`DELETE /volunteers/{id}`) — add to `hooks.ts`; all three send `Authorization: Bearer <token>` header from `sessionStorage`
+    - Auth: `const { isAdmin } = useAdminAuth()`
+    - Render: page header, "Add Volunteer" button (only when `isAdmin`), `<table>` with columns Volunteer Name / Friday / Saturday / Sunday / Tasks / Actions (admin only)
+    - Each row: `VolunteerRow` component with `isAdmin` prop
+    - Empty state: "No volunteers registered yet" when `volunteers.length === 0`
+    - Load error: "Volunteer information is unavailable"
+    - Add/Edit: open `VolunteerForm` in a modal overlay; on save close modal and invalidate `['volunteers']` query
+    - Delete: `useDeleteVolunteer` mutation; on error show toast "Couldn't delete volunteer, please retry"
+  - Update `frontend/src/components/NavTabs.tsx` to add a sixth tab "Volunteer" linking to `#/volunteers`
+  - Update `frontend/src/App.tsx` `<Routes>` to add `<Route path="/volunteers" element={<Volunteers />} />`
+  - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 13.10, 13.11, 13.12_
+  - _Design: Component Specifications (Volunteers, VolunteerRow), State Management_
+
+- [ ] 33. Write tests for volunteer feature (frontend and backend)
+  - **Backend tests** (add to `backend/src/__tests__/`):
+    - `auth.test.ts`: `POST /auth/login` returns 200 + token with valid creds; returns 401 with wrong password; returns 400 with missing fields
+    - `volunteers.test.ts`: `GET /volunteers` returns 200 with list; `POST /volunteers` returns 201 with valid body + valid token; returns 400 with missing name; returns 401 with no/invalid token; `PUT /volunteers/{id}` returns 200 on update, 404 on missing; `DELETE /volunteers/{id}` returns 204 on success, 404 on missing, 401 on no token
+  - **Frontend tests** (add to `frontend/src/`):
+    - `LoginModal.test.tsx`: renders username/password fields; shows "Invalid username or password" on MSW 401; stores token and calls onSuccess on MSW 200
+    - `Volunteers.test.tsx`: renders read-only table (no Add/Edit/Delete) when not admin; renders Add button and action icons when admin token in sessionStorage; shows "No volunteers registered yet" on empty list; shows "Volunteer information is unavailable" on MSW 503
+    - `VolunteerForm.test.tsx`: shows "Name is required" when name empty on submit; shows "Select at least one day" when no day checked; calls onSave with correct payload on valid submit
+  - Add MSW handlers for all 5 new endpoints to `frontend/src/test/msw-server.ts`
+  - Add volunteer fixtures to `frontend/src/test/fixtures.ts`
+  - _Requirements: 11.1–11.8, 12.1–12.8, 13.1–13.12, 14.1–14.5_
+  - _Design: Testing Strategy_
+
 ## Task Dependency Graph
 
 ```mermaid
@@ -281,6 +386,34 @@ graph TD
     T23 --> T24
     T7 --> T24
     T18 --> T24
+
+    T25[25. Shared types: Volunteer]
+    T26[26. Auth route handler]
+    T27[27. Volunteer route handlers]
+    T28[28. Wire new routes into handler]
+    T29[29. CDK: new env vars + routes]
+    T30[30. useAdminAuth + LoginModal]
+    T31[31. VolunteerForm component]
+    T32[32. Volunteers view + nav]
+    T33[33. Volunteer feature tests]
+
+    T2 --> T25
+    T25 --> T26
+    T25 --> T27
+    T25 --> T30
+    T26 --> T28
+    T27 --> T28
+    T28 --> T29
+    T28 --> T33
+    T6 --> T28
+    T10 --> T30
+    T12 --> T31
+    T12 --> T32
+    T30 --> T31
+    T30 --> T32
+    T31 --> T32
+    T32 --> T33
+    T29 --> T33
 ```
 
 ```json
@@ -288,14 +421,18 @@ graph TD
   "waves": [
     { "wave": 1, "tasks": [1] },
     { "wave": 2, "tasks": [2] },
-    { "wave": 3, "tasks": [3, 8, 19] },
+    { "wave": 3, "tasks": [3, 8, 19, 25] },
     { "wave": 4, "tasks": [4, 9] },
     { "wave": 5, "tasks": [5, 10] },
     { "wave": 6, "tasks": [6, 11] },
     { "wave": 7, "tasks": [7, 12, 20] },
     { "wave": 8, "tasks": [13, 14, 15, 16, 17, 21, 22] },
     { "wave": 9, "tasks": [18, 23] },
-    { "wave": 10, "tasks": [24] }
+    { "wave": 10, "tasks": [24] },
+    { "wave": 11, "tasks": [26, 27, 30] },
+    { "wave": 12, "tasks": [28, 31] },
+    { "wave": 13, "tasks": [29, 32] },
+    { "wave": 14, "tasks": [33] }
   ]
 }
 ```
@@ -327,3 +464,10 @@ graph TD
 - **Wave execution**
   - The JSON `waves` block above defines parallelizable groups: tasks within a wave have no dependencies on each other and can be executed concurrently. A task only enters a wave once all its prerequisites (per the Mermaid graph) are completed in earlier waves.
   - Backend (3→4→5→6→7) and frontend (8→9→10→11→12→views→18) tracks run in parallel after wave 2; infra (19→20→21/22→23) joins in once shared types and the Lambda handler exist.
+  - Volunteer feature (25→26/27/30→28/31→29/32→33) runs as a self-contained track after wave 2 (shared types) and gates on the existing handler (T6) and hooks (T10, T12) being complete.
+
+- **Auth**
+  - Admin JWT is verified in the Lambda on every protected route. The `verifyAdminToken` helper is called at the top of each admin-only route handler. Credentials (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`) are passed as CDK context variables and injected as Lambda env vars — never committed to source.
+
+- **Volunteer mutations**
+  - `useCreateVolunteer`, `useUpdateVolunteer`, and `useDeleteVolunteer` attach the `Authorization: Bearer <token>` header from `sessionStorage`. If the token is missing or expired the API returns 401 and the frontend shows a toast prompting the user to log in again.

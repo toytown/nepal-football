@@ -8,13 +8,17 @@ A dynamic single-page application (SPA) for managing the Nepali Europapokal 2026
 
 - **SPA**: The single-page application frontend built with TypeScript and React, deployed to AWS S3 with CloudFront distribution
 - **API**: The RESTful backend service composed of AWS Lambda functions behind API Gateway
-- **Database**: The AWS DynamoDB instance storing all application data (tasks, teams, prep items, timeline milestones)
+- **Database**: The AWS DynamoDB instance storing all application data (tasks, teams, prep items, timeline milestones, volunteers)
 - **Dashboard**: The overview tab displaying aggregate statistics, progress bars, high-priority tasks, and event information
 - **Task_Board**: The view displaying all 15 volunteer tasks with toggle-able completion status
 - **Teams_View**: The view displaying the 6 specialist volunteer teams and their assigned responsibilities
 - **Prep_Checklist**: The view displaying the preparation day setup items with toggle-able completion status
 - **Timeline_View**: The view displaying event milestones in chronological order with toggle-able completion status
+- **Volunteer_View**: The tab displaying registered volunteers with their names, available days, and assigned tasks
+- **Volunteer_Form**: The admin-only form for creating and editing volunteer entries
 - **Organizer**: A tournament organizer who uses the application to manage volunteer coordination
+- **Admin_User**: An authenticated administrator who has write access to volunteer entries; identified by a username/password credential pair
+- **Public_User**: An unauthenticated visitor who can view the Volunteer tab but cannot create or edit entries
 
 ## Requirements
 
@@ -24,7 +28,7 @@ A dynamic single-page application (SPA) for managing the Nepali Europapokal 2026
 
 #### Acceptance Criteria
 
-1. THE SPA SHALL render five navigable tabs: Overview, Task Board, Teams, Prep Day, and Timeline
+1. THE SPA SHALL render six navigable tabs: Overview, Task Board, Teams, Prep Day, Timeline, and Volunteer
 2. WHEN an Organizer clicks a navigation tab, THE SPA SHALL display the corresponding view without triggering a full page reload and complete the view transition within 300 milliseconds
 3. THE SPA SHALL visually indicate the currently active tab using a gold (#FFD700) bottom border and gold text color, while inactive tabs use semi-transparent white text
 4. WHEN the application loads, THE SPA SHALL display the Overview tab as the default view
@@ -149,3 +153,64 @@ A dynamic single-page application (SPA) for managing the Nepali Europapokal 2026
 3. WHILE the viewport width is less than the combined width of all navigation tabs, THE SPA SHALL enable horizontal scrolling on the navigation tab bar without wrapping tabs to a new line
 4. THE SPA SHALL include a viewport meta tag set to device-width with initial scale of 1.0 to ensure proper rendering on mobile devices
 5. THE SPA SHALL ensure all interactive elements (task items, checklist items, milestone items, navigation tabs) have a minimum touch-target size of 44×44 CSS pixels
+
+### Requirement 11: Admin Authentication
+
+**User Story:** As an Admin_User, I want to log in with a username and password, so that I can access protected features such as the volunteer entry form.
+
+#### Acceptance Criteria
+
+1. THE SPA SHALL display a "Login" button visible to unauthenticated users; WHEN clicked, THE SPA SHALL display a login modal containing a username field, a password field, and a submit button
+2. WHEN an Admin_User submits valid credentials, THE SPA SHALL receive a session token from the API, store it in browser sessionStorage, close the login UI, and grant access to admin-only features without a full page reload
+3. WHEN an Admin_User submits invalid credentials, THE SPA SHALL display an inline error message "Invalid username or password" and keep the login UI open
+4. WHILE an Admin_User is authenticated, THE SPA SHALL display a visible logout control (e.g., a "Logout" button in the header)
+5. WHEN an Admin_User clicks logout, THE SPA SHALL clear the session token from sessionStorage, revoke admin access, and navigate to the Overview tab
+6. WHEN the API receives valid credentials, THE API SHALL return an HTTP 200 status code with a session token; IF the API receives invalid credentials, THEN THE API SHALL return an HTTP 401 status code with an error message
+7. THE SPA SHALL persist the authenticated session using a token stored in browser sessionStorage so that the session survives tab refreshes but does not persist across browser sessions; IF the stored token is missing or invalid on page load, THEN THE SPA SHALL treat the user as unauthenticated
+8. IF an unauthenticated user attempts to access an admin-only route or action, THEN THE SPA SHALL redirect the user to the login UI
+
+### Requirement 12: Volunteer Entry Form (Admin Only)
+
+**User Story:** As an Admin_User, I want to fill in a volunteer entry form, so that I can register volunteers with their availability and assigned tasks.
+
+#### Acceptance Criteria
+
+1. THE Volunteer_Form SHALL be accessible only to authenticated Admin_Users; IF an unauthenticated user attempts to open the form, THEN THE SPA SHALL redirect to the login UI
+2. THE Volunteer_Form SHALL contain the following fields: volunteer name (text input, required, max 100 characters), availability checkboxes for Friday, Saturday, and Sunday (at least one day must be selected), and a task assignment multi-select (optional, 0–20 tasks from the Database)
+3. WHEN an Admin_User submits the Volunteer_Form with all required fields valid, THE API SHALL persist the new volunteer entry to the Database within 2 seconds and THE SPA SHALL close the form and display the new entry in the Volunteer_View without a full page reload
+4. WHEN an Admin_User submits the Volunteer_Form with the name field empty, THE SPA SHALL display an inline validation error "Name is required" next to the name field and prevent submission; WHEN no availability day is checked, THE SPA SHALL display an inline validation error "Select at least one day" next to the availability checkboxes and prevent submission
+5. WHILE an Admin_User is authenticated and viewing the Volunteer_View, THE SPA SHALL display an "Add Volunteer" button that opens the Volunteer_Form
+6. WHEN an Admin_User selects an existing volunteer entry for editing, THE Volunteer_Form SHALL pre-populate all fields with the current values of that entry; tasks deleted from the Database since the volunteer was last edited SHALL be omitted from the pre-populated task selector
+7. WHEN an Admin_User submits an edited Volunteer_Form, THE API SHALL update the existing volunteer entry in the Database within 2 seconds and THE SPA SHALL reflect the updated values in the Volunteer_View within 1 second of the API response
+8. IF the API fails to save a volunteer entry, THEN THE SPA SHALL display an error message indicating the save failed and keep the form open with the entered data intact
+
+### Requirement 13: Volunteer Tab
+
+**User Story:** As a Public_User or Admin_User, I want to view the list of registered volunteers with their availability and tasks, so that I can see who is helping and when.
+
+#### Acceptance Criteria
+
+1. THE Volunteer_View SHALL be accessible to all users (authenticated and unauthenticated) as a standard navigation tab
+2. THE Volunteer_View SHALL display all registered volunteers in a tabular layout with the following columns: Volunteer Name (text), Friday (checkbox indicator, checked if available), Saturday (checkbox indicator, checked if available), Sunday (checkbox indicator, checked if available), and Tasks (comma-separated list of assigned task names)
+3. WHEN the Volunteer_View is loaded, THE API SHALL retrieve all volunteer entries from the Database within 3 seconds and return each entry's name, available days, and assigned task list
+4. WHEN there are no registered volunteers, THE Volunteer_View SHALL display a message "No volunteers registered yet"
+5. WHILE a Public_User views the Volunteer_View, THE SPA SHALL display the volunteer table in read-only mode with no edit or delete controls visible
+6. WHILE an Admin_User views the Volunteer_View, THE SPA SHALL display an "Add Volunteer" button and both an edit icon and a delete icon on each volunteer row
+7. WHEN an Admin_User clicks the edit icon on a volunteer row, THE SPA SHALL open the Volunteer_Form pre-populated with that volunteer's data
+8. WHEN an Admin_User confirms deletion of a volunteer entry, THE API SHALL remove the entry from the Database and THE Volunteer_View SHALL remove the row without a full page reload
+9. WHEN an Admin_User clicks the delete icon on a volunteer row, THE SPA SHALL display a confirmation dialog containing a confirm button and a cancel button; WHEN the Admin_User clicks cancel, THE SPA SHALL close the dialog and take no further action
+10. WHEN volunteer data changes (add, edit, delete), THE Volunteer_View SHALL reflect the updated data within 1 second without requiring a full page reload
+11. IF the API fails to delete a volunteer entry, THEN THE Volunteer_View SHALL display an error message indicating the deletion failed and keep the row visible
+12. IF the API fails to retrieve volunteer data on load, THEN THE Volunteer_View SHALL display an error message indicating that volunteer information is unavailable
+
+### Requirement 14: Volunteer Data Storage
+
+**User Story:** As an Admin_User, I want volunteer data stored reliably, so that registrations are not lost between sessions.
+
+#### Acceptance Criteria
+
+1. THE Database SHALL store volunteer entries with fields: id (unique string, max 36 characters), name (string, max 100 characters), available days (set of values from: Friday, Saturday, Sunday; at least one value required), and assigned tasks (list of task id references, minimum 0 entries, maximum 20 entries)
+2. THE Database SHALL enforce uniqueness on the id field for volunteer entries
+3. WHEN a volunteer write operation completes successfully, THE Database SHALL persist the data such that it is retrievable in subsequent read requests without loss or corruption
+4. THE API SHALL expose RESTful endpoints for creating, reading, updating, and deleting volunteer entries (POST /volunteers, GET /volunteers, PUT /volunteers/{id}, DELETE /volunteers/{id})
+5. IF the API receives a request to update or delete a volunteer entry that does not exist, THEN THE API SHALL return an HTTP 404 status code with an error message indicating the volunteer was not found
