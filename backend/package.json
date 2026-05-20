@@ -1,0 +1,25 @@
+{
+  "name": "@nepal-football/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/handler.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.583.0",
+    "@aws-sdk/lib-dynamodb": "^3.583.0",
+    "@aws-sdk/util-dynamodb": "^3.583.0",
+    "@nepal-football/shared": "*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.137",
+    "@types/node": "^20.12.12",
+    "aws-sdk-client-mock": "^4.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

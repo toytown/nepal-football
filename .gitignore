@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+cdk.out/
+.cdk.staging/
+cdk-outputs.json
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.vite/
