@@ -368,3 +368,331 @@ button { font-family: inherit; }
   .header-meta { font-size: 11px; }
   .nav-tabs { padding: 0 8px; }
 }
+
+/* ── VOLUNTEER REGISTRATION FORM ── */
+.reg-field { margin-bottom: 16px; }
+
+.reg-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+
+.reg-required { color: var(--red); margin-left: 2px; }
+
+.reg-input {
+  width: 100%;
+  background: #1a1e30;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.15s;
+  outline: none;
+}
+.reg-input:focus { border-color: var(--gold); }
+.reg-input-error { border-color: var(--red) !important; }
+.reg-input::placeholder { color: var(--muted); }
+
+.reg-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7f99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.reg-select option { background: #1a1e30; }
+
+.reg-textarea { resize: vertical; min-height: 80px; }
+
+.reg-char-count { font-size: 11px; color: var(--muted); float: right; margin-top: 4px; }
+
+.reg-error {
+  display: block;
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+.reg-hint { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+.reg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Day selection cards */
+.reg-days { display: flex; flex-direction: column; gap: 10px; }
+
+.reg-day-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #1a1e30;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.reg-day-card:hover { border-color: var(--gold); }
+.reg-day-card-checked { border-color: var(--gold); background: rgba(255,215,0,0.06); }
+
+.reg-day-checkbox { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.reg-day-check {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  transition: all 0.15s;
+  background: transparent;
+}
+.reg-day-card-checked .reg-day-check { background: var(--gold); border-color: var(--gold); color: var(--dark); }
+
+.reg-day-info { display: flex; flex-direction: column; }
+.reg-day-label { font-weight: 700; font-size: 15px; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.5px; }
+.reg-day-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Submit button */
+.reg-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--navy), var(--red));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  text-align: center;
+}
+.reg-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.reg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.reg-footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+/* Success screen */
+.register-success {
+  text-align: center;
+  padding: 48px 24px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.register-success-icon { font-size: 64px; margin-bottom: 16px; }
+.register-success-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+.register-success-body { font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+/* ── VOLUNTEER TABLE ── */
+.vol-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.vol-th {
+  text-align: left;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.vol-th-day { text-align: center; }
+
+.vol-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.vol-row:last-child { border-bottom: none; }
+.vol-row:hover { background: rgba(255,255,255,0.02); }
+
+.vol-cell { padding: 12px; vertical-align: middle; }
+.vol-name { display: flex; align-items: center; gap: 10px; }
+.vol-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--red));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.vol-name-text { font-weight: 700; font-size: 14px; }
+.vol-city { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.vol-day-cell { text-align: center; padding: 12px 8px; }
+.vol-day-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+.vol-day-yes { background: rgba(34,197,94,0.15); color: var(--success); }
+.vol-day-no  { background: rgba(255,255,255,0.05); color: var(--border); }
+
+.vol-role-badge {
+  display: inline-block;
+  background: rgba(0,56,147,0.25);
+  color: var(--text);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vol-muted { color: var(--muted); }
+.vol-date { font-size: 12px; white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .reg-row { grid-template-columns: 1fr; }
+  .vol-role-badge { max-width: 120px; }
+}
+
+/* ── HEADER AUTH BUTTONS ── */
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.auth-btn {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.auth-btn-login {
+  background: rgba(255,215,0,0.12);
+  color: var(--gold);
+  border-color: rgba(255,215,0,0.3);
+}
+.auth-btn-login:hover { background: rgba(255,215,0,0.22); }
+
+.auth-btn-logout {
+  background: rgba(220,20,60,0.12);
+  color: var(--red);
+  border-color: rgba(220,20,60,0.3);
+}
+.auth-btn-logout:hover { background: rgba(220,20,60,0.22); }
+
+/* ── LOGIN MODAL ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 16px;
+}
+
+.modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.modal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text); }
+
+/* ── ADMIN GATE BANNER ── */
+.admin-gate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  background: rgba(122,127,153,0.08);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.admin-gate-icon { font-size: 14px; }
+
+.admin-gate-text { flex: 1; }
+
+.admin-gate-link {
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.admin-gate-link:hover { color: #fff; }
+
+/* Disable hover effect on read-only prep items */
+.prep-item.read-only:hover { padding-left: 0; }
+.prep-item:disabled { cursor: default; }

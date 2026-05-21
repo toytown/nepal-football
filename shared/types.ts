@@ -68,3 +68,29 @@ export interface Bootstrap {
 export interface ApiError {
   error: { code: string; message: string };
 }
+
+// ─── Volunteer types ────────────────────────────────────────────────────────
+
+export type VolunteerDay = 'Friday' | 'Saturday' | 'Sunday';
+
+export interface VolunteerRegistration {
+  /** Unique identifier (UUID v4), max 36 chars */
+  id: string;
+  /** Full name, max 100 chars */
+  name: string;
+  /** Email address, max 200 chars */
+  email: string;
+  /** Phone number (optional), max 30 chars */
+  phone?: string;
+  /** City / location, max 100 chars */
+  city?: string;
+  /** Available days — at least one required */
+  days: VolunteerDay[];
+  /** Any additional notes, max 500 chars */
+  notes?: string;
+  /** ISO 8601 datetime of submission */
+  submittedAt: string;
+}
+
+/** Shape sent by the public registration form (no id / submittedAt — server assigns those) */
+export type VolunteerRegistrationInput = Omit<VolunteerRegistration, 'id' | 'submittedAt'>;

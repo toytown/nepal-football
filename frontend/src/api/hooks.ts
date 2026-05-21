@@ -11,6 +11,8 @@ import type {
   PrepItem,
   Task,
   Team,
+  VolunteerRegistration,
+  VolunteerRegistrationInput,
 } from '@nepal-football/shared';
 
 import { apiFetch } from './client';
@@ -22,6 +24,7 @@ export const QK = {
   teams:       ['teams'] as const,
   prep:        ['prep'] as const,
   milestones:  ['milestones'] as const,
+  volunteers:  ['volunteers'] as const,
 };
 
 // ─── Queries ───────────────────────────────────────────────────────────────
@@ -149,3 +152,29 @@ export const useToggleMilestone = makeToggleMutation<Milestone>({
   listKey: QK.milestones,
   bootstrapKey: 'milestones',
 });
+
+// ─── Volunteer queries & mutations ─────────────────────────────────────────
+
+export function useVolunteers() {
+  return useQuery({
+    queryKey: QK.volunteers,
+    queryFn: () => apiFetch<VolunteerRegistration[]>('/volunteers'),
+  });
+}
+
+export function useRegisterVolunteer() {
+  const qc = useQueryClient();
+  return useMutation<VolunteerRegistration, Error, VolunteerRegistrationInput>({
+    mutationFn: (input) =>
+      apiFetch<VolunteerRegistration>('/volunteers', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.volunteers });
+    },
+    onError: () => {
+      toast.error("Registration failed. Please try again.");
+    },
+  });
+}

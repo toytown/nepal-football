@@ -19,6 +19,17 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
+
+// ── Domain constants ─────────────────────────────────────────────────────────
+const DOMAIN_NAME = 'nepali-europokal.de';
+const WWW_DOMAIN  = `www.${DOMAIN_NAME}`;
+// Existing ACM certificate (us-east-1) — issued and validated.
+// Created manually; imported here so CDK tracks it without recreating it.
+const CERTIFICATE_ARN =
+  'arn:aws:acm:us-east-1:619516733714:certificate/5a84efca-ff0c-438a-ae72-2bf25ec21731';
 
 export class NepalFootballStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -63,10 +74,18 @@ export class NepalFootballStack extends Stack {
         allowMethods: [
           apigwv2.CorsHttpMethod.GET,
           apigwv2.CorsHttpMethod.PATCH,
+          apigwv2.CorsHttpMethod.POST,
+          apigwv2.CorsHttpMethod.PUT,
+          apigwv2.CorsHttpMethod.DELETE,
           apigwv2.CorsHttpMethod.OPTIONS,
         ],
-        allowHeaders: ['content-type'],
-        allowOrigins: ['*'], // restricted at CloudFront layer
+        allowHeaders: ['content-type', 'authorization'],
+        // Allow the custom domain, www subdomain, and local dev
+        allowOrigins: [
+          `https://${DOMAIN_NAME}`,
+          `https://${WWW_DOMAIN}`,
+          'http://localhost:5173',
+        ],
       },
     });
     const integration = new HttpLambdaIntegration('LambdaInteg', apiLambda);
@@ -114,8 +133,22 @@ function handler(event) {
       `),
     });
 
+    // Import the existing ACM certificate (issued in us-east-1, required by CloudFront).
+    // This certificate was validated and issued; we import rather than recreate it.
+    const certificate = acm.Certificate.fromCertificateArn(
+      this, 'Certificate', CERTIFICATE_ARN,
+    );
+
+    // Look up the existing Route 53 hosted zone for the domain.
+    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: DOMAIN_NAME,
+    });
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultRootObject: 'index.html',
+      // Serve the site on both the apex domain and www
+      domainNames: [DOMAIN_NAME, WWW_DOMAIN],
+      certificate,
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -141,6 +174,36 @@ function handler(event) {
         { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html' },
       ],
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+    });
+
+    // ── Route 53 DNS records ─────────────────────────────────────────────
+    // Apex A + AAAA (IPv4 + IPv6) alias records pointing to CloudFront
+    new route53.ARecord(this, 'AliasApex', {
+      zone: hostedZone,
+      target: route53.RecordTarget.fromAlias(
+        new route53targets.CloudFrontTarget(distribution),
+      ),
+    });
+    new route53.AaaaRecord(this, 'AliasApexAAAA', {
+      zone: hostedZone,
+      target: route53.RecordTarget.fromAlias(
+        new route53targets.CloudFrontTarget(distribution),
+      ),
+    });
+    // www subdomain
+    new route53.ARecord(this, 'AliasWww', {
+      zone: hostedZone,
+      recordName: 'www',
+      target: route53.RecordTarget.fromAlias(
+        new route53targets.CloudFrontTarget(distribution),
+      ),
+    });
+    new route53.AaaaRecord(this, 'AliasWwwAAAA', {
+      zone: hostedZone,
+      recordName: 'www',
+      target: route53.RecordTarget.fromAlias(
+        new route53targets.CloudFrontTarget(distribution),
+      ),
     });
 
     // ── Seed Lambda + Custom Resource ────────────────────────────────────
@@ -181,6 +244,10 @@ function handler(event) {
     });
 
     // ── Outputs ──────────────────────────────────────────────────────────
+    new CfnOutput(this, 'SiteUrl', {
+      value: `https://${DOMAIN_NAME}`,
+      description: 'Live site URL',
+    });
     new CfnOutput(this, 'ApiUrl', { value: httpApi.apiEndpoint });
     new CfnOutput(this, 'TableName', { value: table.tableName });
     new CfnOutput(this, 'DistributionDomainName', {

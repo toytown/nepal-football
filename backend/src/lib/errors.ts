@@ -46,6 +46,14 @@ export const errorResponse = Object.assign(
       if (err instanceof NotFoundError) {
         return makeError(404, 'NOT_FOUND', err.message);
       }
+      // Import lazily to avoid circular dep — check by tag string
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        (err as { tag?: string }).tag === 'UnauthorizedError'
+      ) {
+        return makeError(401, 'UNAUTHORIZED', (err as Error).message);
+      }
       if (isAwsError(err)) {
         const name = err.name ?? '';
         if (name === 'ConditionalCheckFailedException') {

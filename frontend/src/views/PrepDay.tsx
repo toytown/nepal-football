@@ -1,11 +1,14 @@
 import { usePrepItems, useTogglePrepItem } from '../api/hooks';
+import { useAdminAuth } from '../hooks/AdminAuthContext';
 import ProgressBar from '../components/ProgressBar';
 import ChecklistItem from '../components/ChecklistItem';
+import AdminGate from '../components/AdminGate';
 
 const PREP_GRADIENT = 'linear-gradient(90deg,#22c55e,#003893)';
 
 export default function PrepDay() {
   const { data: items, isLoading, isError } = usePrepItems();
+  const { isAdmin } = useAdminAuth();
   const toggle = useTogglePrepItem();
 
   if (isLoading) return <div className="inline-loading">Loading checklist…</div>;
@@ -26,7 +29,11 @@ export default function PrepDay() {
       </div>
 
       <div className="card">
-        <div className="card-title">Setup Checklist — Click to Complete</div>
+        <div className="card-title">
+          Setup Checklist
+          {isAdmin ? ' — Click to Complete' : ' — View Only'}
+        </div>
+        <AdminGate />
         <ProgressBar
           label="Preparation Progress"
           done={done}
@@ -38,7 +45,10 @@ export default function PrepDay() {
           <ChecklistItem
             key={item.id}
             item={item}
-            onToggle={(it) => toggle.mutate({ id: it.id, done: !it.done })}
+            onToggle={isAdmin
+              ? (it) => toggle.mutate({ id: it.id, done: !it.done })
+              : undefined
+            }
           />
         ))}
       </div>
